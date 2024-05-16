@@ -1,0 +1,5 @@
+*DS_Store*
+Dataset/LavalIndoor/Original_HDR/*
+Dataset/LavalIndoor/Stage1/*
+Dataset/LavalIndoor/Stage2/*
+*__pycache__*

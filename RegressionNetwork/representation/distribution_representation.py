@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 from PIL import Image
 import pickle
@@ -7,60 +6,9 @@ import imageio
 import vtk
 from vtk.util import numpy_support
 import torch
-import detect_util
 import util
 
 imageio.plugins.freeimage.download()
-
-
-def rgb_to_intenisty(rgb):
-    intensity = 0.3 * rgb[..., 0] + 0.59 * rgb[..., 1] + 0.11 * rgb[..., 2]
-    return intensity
-
-def polar_to_cartesian(phi_theta):
-    phi, theta = phi_theta
-    # sin(theta) * cos(phi)
-    x = np.sin(theta) * np.cos(phi)
-    # sin(theta) * sin(phi)
-    y = np.sin(theta) * np.sin(phi)
-    # cos(theta)
-    z = np.cos(theta)
-    return np.array([x, y, z])
-
-def normalize_2_unit_sphere(pts):
-    num_pts = pts.GetNumberOfPoints()
-    # print("we have #{} pts".format(num_pts))
-    for i in range(num_pts):
-        tmp = list(pts.GetPoint(i))
-        n = vtk.vtkMath.Normalize(tmp)
-        pts.SetPoint(i, tmp)
-
-def polyhedron(subdivide=1):
-
-    icosa = vtk.vtkPlatonicSolidSource()
-    icosa.SetSolidTypeToIcosahedron()
-    icosa.Update()
-    subdivided_sphere = icosa.GetOutput()
-
-    for i in range(subdivide):
-        linear = vtk.vtkLinearSubdivisionFilter()
-        linear.SetInputData(subdivided_sphere)
-        linear.SetNumberOfSubdivisions(1)
-        linear.Update()
-        subdivided_sphere = linear.GetOutput()
-        normalize_2_unit_sphere(subdivided_sphere.GetPoints())
-        subdivided_sphere.Modified()
-
-    # if save_directions:
-    transform = vtk.vtkSphericalTransform()
-    transform = transform.GetInverse()
-    pts = subdivided_sphere.GetPoints()
-    pts_spherical = vtk.vtkPoints()
-    transform.TransformPoints(pts, pts_spherical)
-
-    pts_arr = numpy_support.vtk_to_numpy(pts.GetData())
-    # print (as_numpy.shape)
-    return pts_arr
 
 class extract_mesh():
     def __init__(self, h=128, w=256, ln=64):
@@ -88,7 +36,6 @@ class extract_mesh():
         self.ln, _ = self.anchors.shape
 
     def compute(self, hdr):
-
         hdr = self.steradian * hdr
         hdr_intensity = 0.3 * hdr[..., 0] + 0.59 * hdr[..., 1] + 0.11 * hdr[..., 2]
         max_intensity_ind = np.unravel_index(np.argmax(hdr_intensity, axis=None), hdr_intensity.shape)
@@ -119,30 +66,32 @@ class extract_mesh():
                              'ambient': ambient}
         return parametric_lights, map
 
-
-# train_dir = '/home/fangneng.zfn/datasets/LavalIndoor/nips/'
-bs_dir = '/home/fangneng.zfn/datasets/LavalIndoor/'
-hdr_dir = bs_dir + 'marc/warpedHDROutputs/'
-sv_dir = bs_dir + 'pkl/'
-# crop_dir = bs_dir + 'tpami cxd'
+bs_dir = '/Users/erbao/Life/CS231N/project/EMLight/Dataset/LavalIndoor/'
+hdr_dir = bs_dir + 'Stage1/warpedHDROutputs/'
+sv_dir = bs_dir + 'Stage2/params/'
 nms = os.listdir(hdr_dir)
-# nms = nms[:100]
+nms = nms[:1]
 ln = 128
 
 extractor = extract_mesh(ln=ln)
 
 i = 0
-# nms = ['AG8A9899-others-40-1.62409-1.07406.exr']
 for nm in nms:
     if nm.endswith('.exr'):
         hdr_path = hdr_dir + nm
 
         h = util.PanoramaHandler()
-        hdr = h.read_exr(hdr_path)
-        para, map = extractor.compute(hdr)
+        hdr = h.read_exr(hdr_path) # (128, 256, 3)
+
+        # param["distribution"], (128,), sum to 1
+        # param["intensity"], scaler value
+        # param["rgb_ratio"], (3,)
+        # param["ambient"], (3,)
+        # map, (128, 256, 1), true if the entry is part of light source
+        param, map = extractor.compute(hdr)
 
         with open((sv_dir + os.path.basename(hdr_path).replace('exr', 'pickle')), 'wb') as handle:
-            pickle.dump(para, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(param, handle, protocol=pickle.HIGHEST_PROTOCOL)
         i += 1
         print (i)
 

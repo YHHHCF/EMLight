@@ -9,7 +9,6 @@ import time
 import vtk
 from vtk.util import numpy_support
 
-import detect_util
 import util
 
 imageio.plugins.freeimage.download()
