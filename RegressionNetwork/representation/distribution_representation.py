@@ -68,9 +68,9 @@ class extract_mesh():
 
 bs_dir = '/Users/erbao/Life/CS231N/project/EMLight/Dataset/LavalIndoor/'
 hdr_dir = bs_dir + 'Stage1/warpedHDROutputs/'
-save_dir = bs_dir + '/EMLightParams/'
+save_dir = bs_dir + '/pkl_128/'
 nms = os.listdir(hdr_dir)
-ln = 128
+ln = 128 # This was 128 in the original paper
 
 extractor = extract_mesh(ln=ln)
 

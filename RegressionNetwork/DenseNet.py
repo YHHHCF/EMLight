@@ -132,22 +132,23 @@ class DenseNet(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         self.relu = nn.ReLU()
 
+    # x, input of shape (N=16, 3, 192, 256)
     def forward(self, x):
-        features = self.features(x)
+        features = self.features(x) # (16, 171, 24, 32)
         out = F.relu(features, inplace=True)
-        out = F.avg_pool2d(out, kernel_size=self.avgpool_size).view(features.size(0), -1)
-        out = self.fc(out)
+        out = F.avg_pool2d(out, kernel_size=self.avgpool_size).view(features.size(0), -1) # (16, 171 * 6 * 8)
+        out = self.fc(out) # (16, 1024)
 
-        dist_pred = self.fc_dist(out)
+        dist_pred = self.fc_dist(out) # (16, 96)
         # dist_pred = self.sigmoid(dist_pred)
 
-        intenstiy_pred = self.fc_intensity(out)
+        intenstiy_pred = self.fc_intensity(out) # (16, 1)
         # intenstiy_pred = self.relu(intenstiy_pred)
 
-        rgb_ratio_pred = self.fc_rgb_ratio(out)
+        rgb_ratio_pred = self.fc_rgb_ratio(out) # (16, 3)
         # rgb_ratio_pred = self.sigmoid(rgb_ratio_pred)
 
-        ambient_pred = self.fc_ambient(out)
+        ambient_pred = self.fc_ambient(out) # (16, 3)
         # ambient_pred = self.relu(ambient_pred)
 
         return {'distribution': dist_pred,

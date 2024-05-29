@@ -12,43 +12,28 @@ from PIL import Image
 import util
 import DenseNet
 from geomloss import SamplesLoss
-<<<<<<< HEAD
 # from sliced_wasserstein import sliced_wasserstein_distance
-=======
->>>>>>> 2e87aa6 (update)
 
 import imageio
 imageio.plugins.freeimage.download()
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 h = PanoramaHandler()
 batch_size = 16
 
 save_dir = "./checkpoints"
-<<<<<<< HEAD
-train_dir = '/opt/tiger/fnzhan/datasets/LavalIndoor/'
-=======
-train_dir = '/Datasets/Laval-Indoor/'
->>>>>>> 2e87aa6 (update)
-# train_dir = '/home/fangneng.zfn/projects/Alibaba/MeshLight/dataset/'
+train_dir = "../Dataset/LavalIndoor/"
 hdr_train_dataset = data.ParameterDataset(train_dir)
 dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# Model = model.densenet121(pretrained=False, output_type='regress').to(device)
 Model = DenseNet.DenseNet().to(device)
-# Model = nn.DataParallel(Model, device_ids=[0, 1])# multi-GPU
 
 torch.set_grad_enabled(True)
 Model.train()
 
 load_weight = True
 if load_weight:
-<<<<<<< HEAD
-    Model.load_state_dict(torch.load("./checkpoints/490_net_160.pth"))
-=======
-    Model.load_state_dict(torch.load("./checkpoints/70_net.pth"))
->>>>>>> 2e87aa6 (update)
+    Model.load_state_dict(torch.load("./checkpoints/50_net.pth", map_location=device))
     print('load trained model')
 util.print_model_parm_nums(Model)
 
@@ -62,12 +47,11 @@ Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
 
 tone = util.TonemapHDR(gamma=2.4, percentile=99, max_mapping=0.99)
 
-ln = 96
+ln = 96 # This was 128 in the paper
 
 coord = util.sphere_points(ln)
 coord = torch.from_numpy(coord).unsqueeze(0)
 coord = coord.repeat(batch_size, 1, 1).to(device).float()
-
 
 
 for epoch in range(0, 500):
@@ -77,18 +61,16 @@ for epoch in range(0, 500):
     # lambda_G = lambda epoch: 0.5 ** (epoch // 30)
 
     for i, para in enumerate(dataloader):
-
-        input = para['crop'].to(device)
+        input = para['crop'].to(device) # (N=16, 3, 192, 256)
         pred = Model(input)
 
-        dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device)
-        intensity_pred, intensity_gt = pred['intensity'], para['intensity'].to(device)
-        rgb_ratio_pred, rgb_ratio_gt = pred['rgb_ratio'], para['rgb_ratio'].to(device)
-        ambient_pred, ambient_gt = pred['ambient'], para['ambient'].to(device)
+        dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device) # (16, ln=96)
+        intensity_pred, intensity_gt = pred['intensity'], para['intensity'].to(device).view(-1, 1) # (16, 1)
+        rgb_ratio_pred, rgb_ratio_gt = pred['rgb_ratio'], para['rgb_ratio'].to(device) # (16, 3)
+        ambient_pred, ambient_gt = pred['ambient'], para['ambient'].to(device) # (16, 3)
 
-
-        dist_pred = dist_pred.view(-1, ln, 1)
-        dist_gt = dist_gt.view(-1, ln, 1)
+        dist_pred = dist_pred.view(-1, ln, 1) # (N=16, 96, 1)
+        dist_gt = dist_gt.view(-1, ln, 1) # (N=16, 96, 1)
         dist_emloss = Sam_Loss(dist_pred, dist_gt).sum() * 1000.0
         dist_l2loss = l2(dist_pred, dist_gt) * 1000.0
         intensity_loss = l2(intensity_pred, intensity_gt) * 0.1
@@ -100,7 +82,6 @@ for epoch in range(0, 500):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         # scheduler.step()
 
         if i % 10 == 0:
@@ -110,9 +91,9 @@ for epoch in range(0, 500):
         if i % 100 == 0:
             dirs = util.sphere_points(ln)
             dirs = torch.from_numpy(dirs).float()
-            dirs = dirs.view(1, ln * 3).cuda()
+            dirs = dirs.view(1, ln * 3).to(device)
 
-            size = torch.ones((1, ln)).cuda().float() * 0.0025
+            size = torch.ones((1, ln)).to(device).float() * 0.0025
 
             intensity_pred = intensity_pred[0].view(1, 1, 1).repeat(1, ln, 3) * 500
             dist_pred = dist_pred[0].view(1, ln, 1).repeat(1, 1, 3)
@@ -123,8 +104,6 @@ for epoch in range(0, 500):
             env_pred = np.squeeze(env_pred[0].detach().cpu().numpy())
             env_pred = tone(env_pred)[0].transpose((1, 2, 0)).astype('float32') * 255.0
 
-
-            # rgb_ratio_gt = rgb_ratio_gt[0].view(1, 1, 3).repeat(1, ln, 1)
             intensity_gt = intensity_gt[0].view(1, 1, 1).repeat(1, ln, 3) * 500
             dist_gt = dist_gt[0].view(1, ln, 1).repeat(1, 1, 3)
             rgb_ratio_gt = rgb_ratio_gt[0].view(1, 1, 3).repeat(1, ln, 1)
@@ -153,7 +132,6 @@ for epoch in range(0, 500):
             save_filename = 'latest_net.pth'
             save_path = os.path.join(save_dir, save_filename)
             torch.save(Model.state_dict(), save_path)
-
 
 
     if epoch % 10 == 0:

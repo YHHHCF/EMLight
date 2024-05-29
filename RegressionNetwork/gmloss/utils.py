@@ -2,6 +2,7 @@
 import torch
 import numpy as np
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def scal(α, f):
     # if batch:
@@ -89,8 +90,8 @@ class distance():
         M = M.unsqueeze(0)
 
         anchors = anchors.unsqueeze(0)
-        self.anchors = anchors.repeat(batchsize, 1, 1).cuda()
-        self.M = M.repeat(batchsize, 1, 1).cuda()
+        self.anchors = anchors.repeat(batchsize, 1, 1).to(device)
+        self.M = M.repeat(batchsize, 1, 1).to(device)
 
     def geometric_distance(self, x, y):
         # x = torch.cat((x, self.anchors), 2)

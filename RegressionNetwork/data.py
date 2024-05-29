@@ -6,10 +6,7 @@ from torchvision import transforms
 import numpy as np
 import util
 from PIL import Image
-<<<<<<< HEAD
-=======
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
->>>>>>> 2e87aa6 (update)
 import cv2
 import pickle
 import imageio
@@ -50,10 +47,7 @@ class ParameterDataset(Dataset):
             'intensity': None,
             'rgb_ratio': None,
             'ambient': None,
-<<<<<<< HEAD
-            'depth': None,
-=======
->>>>>>> 2e87aa6 (update)
+            # 'depth': None,
             'name': None}
 
         pair = self.pairs[index]
@@ -71,10 +65,7 @@ class ParameterDataset(Dataset):
         training_pair['intensity'] = torch.from_numpy(np.array(gt['intensity'])).float() * alpha / 500
         training_pair['rgb_ratio'] = torch.from_numpy(gt['rgb_ratio']).float()
         training_pair['ambient'] = torch.from_numpy(gt['ambient']).float() * alpha / (128 * 256)
-<<<<<<< HEAD
-        training_pair['depth'] = torch.from_numpy(gt['depth']).float()
-=======
->>>>>>> 2e87aa6 (update)
+        # training_pair['depth'] = torch.from_numpy(gt['depth']).float()
 
         training_pair['name'] = gt_path.split('/')[-1].split('.pickle')[0]
 

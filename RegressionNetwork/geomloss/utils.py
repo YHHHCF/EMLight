@@ -2,6 +2,7 @@
 import torch
 import numpy as np
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def scal(α, f):
     # if batch:
@@ -55,9 +56,6 @@ def sphere_points(n=128):
     points[:, 0] = radius * np.cos(theta)
     points[:, 1] = radius * np.sin(theta)
     points[:, 2] = z
-
-    # xyz = points
-    # x, y, z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
     return points
 
 
@@ -77,10 +75,8 @@ class distance():
         M = M.unsqueeze(0)
 
         anchors = anchors.unsqueeze(0)
-        self.anchors = anchors.repeat(batchsize, 1, 1).cuda()
-        self.M = M.repeat(batchsize, 1, 1).cuda()
-        # print (self.M)
-        # print (1/0)
+        self.anchors = anchors.repeat(batchsize, 1, 1).to(device)
+        self.M = M.repeat(batchsize, 1, 1).to(device)
 
     def spherical_distance(self, x, y):
         # x = torch.cat((x, self.anchors), 2)
@@ -92,11 +88,5 @@ class distance():
         D_yy = (y * y).sum(-1).unsqueeze(1)  # (B,1,M)
 
         D = (D_xx - 2 * D_xy + D_yy) * 0.1 + self.M.detach()
-        # print (D)
-        # print (D.shape)
-        # print (1/0)
 
         return D
-
-# def distances(x, y):
-#     return sqrt_0( squared_distances(x,y) )

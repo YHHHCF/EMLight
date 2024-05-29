@@ -20,7 +20,6 @@ class SamplesLoss(Module):
     """
 
     def __init__(self, loss="sinkhorn", p=2, blur=.05, reach=None, diameter=None, scaling=.5, batchsize=None):
-
         super(SamplesLoss, self).__init__()
         self.loss = loss
         self.p = p
@@ -28,7 +27,6 @@ class SamplesLoss(Module):
         self.reach = reach
         self.diameter = diameter
         self.scaling = scaling
-
         self.distance = distance(batchsize=batchsize)
         # self.shperical_distance = self.distance.spherical_distance()
 

@@ -2,20 +2,16 @@ import torch
 import numpy as np
 import OpenEXR
 import Imath
-<<<<<<< HEAD
 import cv2
 from scipy import interpolate
 import vtk
 from vtk.util import numpy_support
-=======
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
-import cv2
-from scipy import interpolate
->>>>>>> 2e87aa6 (update)
 import imageio
 imageio.plugins.freeimage.download()
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def read_exr(exr_path):
     File = OpenEXR.InputFile(exr_path)
@@ -230,7 +226,7 @@ def convert_to_panorama(dirs, sizes, colors):
     x = torch.sin(grid_latitude) * torch.cos(grid_longitude)
     y = torch.sin(grid_latitude) * torch.sin(grid_longitude)
     z = torch.cos(grid_latitude)
-    xyz =  torch.stack((x, y, z)).cuda()
+    xyz =  torch.stack((x, y, z)).to(device)
 
     nbatch = colors.shape[0]
     lights = torch.zeros((nbatch, 3, 128, 256), dtype=dirs.dtype, device=dirs.device)
@@ -245,7 +241,6 @@ def convert_to_panorama(dirs, sizes, colors):
     return lights
 
 
-<<<<<<< HEAD
 def normalize_2_unit_sphere(pts):
     num_pts = pts.GetNumberOfPoints()
     # print("we have #{} pts".format(num_pts))
@@ -281,8 +276,7 @@ def polyhedron(subdivide=1):
     # print (as_numpy.shape)
     return pts_arr
 
-=======
->>>>>>> 2e87aa6 (update)
+
 def sphere_points(n=128):
     golden_angle = np.pi * (3 - np.sqrt(5))
     theta = golden_angle * np.arange(n)
@@ -314,7 +308,7 @@ class SinkhornDistance():
         self.eps = eps
         self.max_iter = max_iter
         self.reg = 1.0
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
         h, w = 128, 128
         pix1 = torch.linspace(0, 1, h)
         pix2 = torch.linspace(0, 1, w)

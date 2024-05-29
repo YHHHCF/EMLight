@@ -2,4 +2,5 @@
 Dataset/LavalIndoor/Original_HDR/*
 Dataset/LavalIndoor/Stage1/*
 Dataset/LavalIndoor/Stage2/*
+Dataset/LavalIndoor/crop/*
 *__pycache__*
