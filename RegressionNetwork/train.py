@@ -82,7 +82,6 @@ for epoch in range(0, 500):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        # scheduler.step()
 
         if i % 10 == 0:
             print("epoch {:0>3d} batch {:0>3d}, dist_emloss:{}, dist_l2loss:{}, intensity_loss:{}, rgb_loss:{}, ambient_loss:{}"

@@ -36,7 +36,7 @@ if load_weight:
 tone = util.TonemapHDR(gamma=2.4, percentile=99, max_mapping=0.9)
 
 for i, para in enumerate(dataloader):
-    if i >= 10:
+    if i >= 100:
         break
     ln = 96
 
@@ -47,18 +47,23 @@ for i, para in enumerate(dataloader):
 
      # (1, ln=96)
     distribution_pred = pred['distribution']
+    distribution_pred[distribution_pred < 0] = 0
     distribution_gt = para['distribution'].to(device)
 
      # (1, 3)
     rgb_ratio_pred = pred['rgb_ratio']
+    rgb_ratio_pred[rgb_ratio_pred < 0] = 0
+    rgb_ratio_pred[rgb_ratio_pred > 1] = 1
     rgb_ratio_gt = para['rgb_ratio'].to(device)
+    print(rgb_ratio_pred)
+    print(rgb_ratio_gt)
 
     # scalar
     intensity_pred = pred['intensity'] * 500
     intensity_gt = para['intensity'].to(device) * 500
 
     print(torch.any(distribution_pred < 0), torch.any(rgb_ratio_pred < 0), intensity_pred < 0)
-    print(torch.any(distribution_gt < 0), torch.any(rgb_ratio_gt < 0), intensity_gt < 0)
+    # print(torch.any(distribution_gt < 0), torch.any(rgb_ratio_gt < 0), intensity_gt < 0)
 
     print (intensity_pred, intensity_gt)
 
