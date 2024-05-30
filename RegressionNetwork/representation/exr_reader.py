@@ -13,7 +13,7 @@ import util
 handle = util.PanoramaHandler()
 tone = util.TonemapHDR()
 
-bs_dir = '/home/fangneng.zfn/datasets/LavalIndoor/'
+bs_dir = "../Dataset/LavalIndoor/crop"
 exr_dir = bs_dir + 'marc/warpedHDROutputs/'
 sv_dir = bs_dir + 'marc/warpedim/'
 nms = os.listdir(exr_dir)
