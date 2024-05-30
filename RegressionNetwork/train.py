@@ -18,11 +18,11 @@ import imageio
 imageio.plugins.freeimage.download()
 
 h = PanoramaHandler()
-batch_size = 16
+batch_size = 8
 
 save_dir = "./checkpoints"
 train_dir = "../Dataset/LavalIndoor/"
-hdr_train_dataset = data.ParameterDataset(train_dir)
+hdr_train_dataset = data.ParameterDataset(train_dir, use_small=False)
 dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -33,11 +33,11 @@ Model.train()
 
 load_weight = True
 if load_weight:
-    Model.load_state_dict(torch.load("./checkpoints/50_net.pth", map_location=device))
+    Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
     print('load trained model')
 util.print_model_parm_nums(Model)
 
-lr_base = 0.0001
+lr_base = 0.00001
 betas = (0.9, 0.999)
 optimizer = torch.optim.Adam(Model.parameters(), lr=lr_base, betas=betas)
 lr_decay_iters = 1000

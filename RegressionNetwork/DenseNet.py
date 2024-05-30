@@ -156,3 +156,47 @@ class DenseNet(nn.Module):
                 'rgb_ratio': rgb_ratio_pred,
                 'ambient': ambient_pred,
                 }
+
+class OriginalDenseNet(nn.Module):
+    def __init__(self):
+        super(OriginalDenseNet, self).__init__()
+
+        self.features = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
+        # for param in self.features.parameters():
+        #     param.require_grad = False
+        H = 1024
+
+        # Linear layer
+        self.fc = nn.Linear(1000, H)
+        self.fc_dist = nn.Linear(H, 96)  # 12,12,32
+        self.fc_intensity = nn.Linear(H, 1)
+        self.fc_rgb_ratio = nn.Linear(H, 3)
+        self.fc_ambient = nn.Linear(H, 3)
+        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Softmax(dim=1)
+        self.relu = nn.ReLU()
+
+    # x, input of shape (N=16, 3, 192, 256)
+    def forward(self, x):
+        features = self.features(x) # (16, 1000)
+        out = F.relu(features, inplace=True)
+        out = self.fc(out) # (16, 1024)
+
+        dist_pred = self.fc_dist(out) # (16, 96)
+        # dist_pred = self.sigmoid(dist_pred)
+
+        intenstiy_pred = self.fc_intensity(out) # (16, 1)
+        # intenstiy_pred = self.relu(intenstiy_pred)
+
+        rgb_ratio_pred = self.fc_rgb_ratio(out) # (16, 3)
+        # rgb_ratio_pred = self.sigmoid(rgb_ratio_pred)
+
+        ambient_pred = self.fc_ambient(out) # (16, 3)
+        # ambient_pred = self.relu(ambient_pred)
+
+        return {'distribution': dist_pred,
+                'intensity': intenstiy_pred,
+                'rgb_ratio': rgb_ratio_pred,
+                'ambient': ambient_pred,
+                }

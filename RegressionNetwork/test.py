@@ -35,8 +35,6 @@ if load_weight:
     print ('load trained model')
 tone = util.TonemapHDR(gamma=2.4, percentile=99, max_mapping=0.9)
 
-# torch.set_grad_enabled(True)
-# Model.test()
 for i, para in enumerate(dataloader):
     if i >= 10:
         break

@@ -15,14 +15,17 @@ import shutil
 
 
 class ParameterDataset(Dataset):
-    def __init__(self, train_dir):
+    def __init__(self, train_dir, use_small=False):
         assert os.path.exists(train_dir)
 
-        # self.train_dir = train_dir
         self.pairs = []
 
         gt_dir = train_dir + 'pkl/'
-        crop_dir = train_dir + 'crop/'
+
+        if use_small:
+            crop_dir = train_dir + 'crop_small/' # try to overfit a small dataset
+        else:
+            crop_dir = train_dir + 'crop/'
 
         gt_nms = os.listdir(gt_dir)
         for nm in gt_nms:
