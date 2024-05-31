@@ -1,0 +1,3 @@
+[submodule "RegressionNetwork/semantics/semantic-segmentation-pytorch"]
+	path = RegressionNetwork/semantics/semantic-segmentation-pytorch
+	url = https://github.com/YHHHCF/semantic-segmentation-pytorch.git
