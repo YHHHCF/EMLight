@@ -3,6 +3,7 @@ Dataset/LavalIndoor/Original_HDR/*
 Dataset/LavalIndoor/Stage1/*
 Dataset/LavalIndoor/Stage2/*
 Dataset/LavalIndoor/crop/*
+Dataset/LavalIndoor/input_train/*
 Dataset/LavalIndoor/dataset_ICCV_stage1.tar.gz
 Dataset/LavalIndoor/dataset_ICCV_stage2.tar.gz
 RegressionNetwork/checkpoints/
