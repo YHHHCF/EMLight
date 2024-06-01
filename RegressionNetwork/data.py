@@ -23,9 +23,9 @@ class ParameterDataset(Dataset):
         gt_dir = train_dir + 'pkl/'
 
         if use_small:
-            crop_dir = train_dir + 'crop_small/' # try to overfit a small dataset
+            crop_dir = train_dir + 'input_small/' # try to overfit a small dataset
         else:
-            crop_dir = train_dir + 'crop/'
+            crop_dir = train_dir + 'input_train/'
 
         gt_nms = os.listdir(gt_dir)
         for nm in gt_nms:
@@ -70,9 +70,6 @@ class ParameterDataset(Dataset):
         # training_pair['depth'] = torch.from_numpy(gt['depth']).float()
 
         training_pair['name'] = gt_path.split('/')[-1].split('.pickle')[0]
-
-
-        # print (training_pair['intensity'], alpha)
 
         return training_pair
 
