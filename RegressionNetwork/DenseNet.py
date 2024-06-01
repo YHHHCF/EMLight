@@ -200,3 +200,19 @@ class OriginalDenseNet(nn.Module):
                 'rgb_ratio': rgb_ratio_pred,
                 'ambient': ambient_pred,
                 }
+
+class IntensityNet(nn.Module):
+    def __init__(self):
+        super(IntensityNet, self).__init__()
+
+        # self.max_pool = nn.MaxPool2d(4, stride=4) # (N, 3, 48, 64)
+        self.avg_pool = nn.AvgPool2d(16, stride=16) # (N, 3, 12, 16)
+        self.flatten = nn.Flatten() # (N, 3*12*16)
+        self.fc = nn.Linear(3*12*16, 1)
+
+    def forward(self, x):
+        # out = self.max_pool(x)
+        out = self.avg_pool(x)
+        out = self.flatten(out)
+        out = self.fc(out)
+        return out

@@ -37,11 +37,10 @@ if load_weight:
     print('load trained model')
 util.print_model_parm_nums(Model)
 
-lr_base = 0.00001
+lr_base = 0.0001
 betas = (0.9, 0.999)
 optimizer = torch.optim.Adam(Model.parameters(), lr=lr_base, betas=betas)
 lr_decay_iters = 1000
-# scheduler = lr_scheduler.StepLR(optimizer, step_size=lr_decay_iters, gamma=0.5)
 l2 = nn.MSELoss().to(device)
 Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
 
