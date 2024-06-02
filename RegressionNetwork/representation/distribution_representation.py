@@ -66,9 +66,29 @@ class extract_mesh():
                              'ambient': ambient}
         return parametric_lights, map
 
-bs_dir = '/Users/erbao/Life/CS231N/project/EMLight/Dataset/LavalIndoor/'
+    def compute_ambient(self, hdr):
+        hdr = self.steradian * hdr
+        hdr_intensity = 0.3 * hdr[..., 0] + 0.59 * hdr[..., 1] + 0.11 * hdr[..., 2]
+        max_intensity_ind = np.unravel_index(np.argmax(hdr_intensity, axis=None), hdr_intensity.shape)
+        max_intensity = hdr_intensity[max_intensity_ind]
+        ambient_map = hdr_intensity <= (max_intensity * 0.05)
+        ambient_map = np.expand_dims(ambient_map, axis=-1)
+        ambient = hdr * ambient_map
+
+        anchors = np.zeros((self.ln, 3))
+
+        for i in range(self.ln):
+            mask = self.idx == i
+            mask = np.expand_dims(mask, -1)
+            anchors[i] = (ambient * mask).sum(axis=(0, 1))
+
+        parametric_ambients = {"ambient": anchors} # (ln, 3)
+        return parametric_ambients, ambient_map
+
+bs_dir = '../../Dataset/LavalIndoor/'
 hdr_dir = bs_dir + 'Stage1/warpedHDROutputs/'
-save_dir = bs_dir + '/pkl_128/'
+save_dir = bs_dir + '/pkl/ambient/'
+img_save_dir = save_dir + 'imgs/'
 nms = os.listdir(hdr_dir)
 ln = 128 # This was 128 in the original paper
 
@@ -91,39 +111,72 @@ for nm in nms:
 
         with open((save_dir + os.path.basename(hdr_path).replace('exr', 'pickle')), 'wb') as handle:
             pickle.dump(param, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        dirs = util.sphere_points(ln)
+        dirs = torch.from_numpy(dirs)
+        dirs = dirs.view(1, ln*3).cuda().float()
+
+        size = torch.ones((1, ln)).cuda().float() * 0.0025
+        intensity = torch.from_numpy(np.array(param['intensity'])).float().cuda()
+        intensity = intensity.view(1, 1, 1).repeat(1, ln, 3).cuda()
+
+        rgb_ratio = torch.from_numpy(np.array(param['rgb_ratio'])).float().cuda()
+        rgb_ratio = rgb_ratio.view(1, 1, 3).repeat(1, ln, 1).cuda()
+
+        distribution = torch.from_numpy(param['distribution']).cuda().float()
+        distribution = distribution.view(1, ln, 1).repeat(1, 1, 3)
+
+        light_rec = distribution * intensity * rgb_ratio
+        light_rec = light_rec.contiguous().view(1, ln*3)
+
+        env = util.convert_to_panorama(dirs, size, light_rec)
+        env = env.detach().cpu().numpy()[0]
+        env = util.tonemapping(env) * 255.0
+        im = np.transpose(env, (1, 2, 0))
+        im = Image.fromarray(im.astype('uint8'))
+
+        nm_ = nm.split('.')[0]
+        im.save(img_save_dir + '{}_rec.png'.format(nm_))
+
+        gt = util.tonemapping(hdr) * 255.0
+        gt = Image.fromarray(gt.astype('uint8'))
+        gt.save(img_save_dir + '{}_gt.png'.format(nm_))
+
+        light = util.tonemapping(hdr) * 255.0 * map
+        light = Image.fromarray(light.astype('uint8'))
+        light.save(img_save_dir + '{}_light.png'.format(nm_))
+
+        # compute ambient related parameters with finer grain
+        ambient_param, ambient_map = extractor.compute_ambient(hdr)
+
+        with open((save_dir + os.path.basename(hdr_path).replace('exr', 'pickle')), 'wb') as handle:
+            pickle.dump(ambient_param, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        ambient = torch.from_numpy(np.array(ambient_param['ambient'])).float().cuda()
+
+        dirs = util.sphere_points(ln)
+        dirs = torch.from_numpy(dirs)
+        dirs = dirs.view(1, ln*3).cuda().float()
+
+        size = torch.ones((1, ln)).cuda().float() * 0.0025
+        ambient_rec = ambient.contiguous().view(1, ln*3)
+
+        env = util.convert_to_panorama(dirs, size, ambient_rec)
+        env = env.detach().cpu().numpy()[0]
+        env = util.tonemapping(env) * 255.0
+        im = np.transpose(env, (1, 2, 0))
+        im = Image.fromarray(im.astype('uint8'))
+
+        nm_ = nm.split('.')[0]
+        im.save(img_save_dir + '{}_rec.png'.format(nm_))
+
+        gt = util.tonemapping(hdr) * 255.0
+        gt = Image.fromarray(gt.astype('uint8'))
+        gt.save(img_save_dir + '{}_gt.png'.format(nm_))
+
+        ambient = util.tonemapping(hdr) * 255.0 * ambient_map
+        ambient = Image.fromarray(ambient.astype('uint8'))
+        ambient.save(img_save_dir + '{}_ambient.png'.format(nm_))
+
         i += 1
         print(i, len(nms))
-
-        # dirs = util.sphere_points(ln)
-        # dirs = torch.from_numpy(dirs)
-        # dirs = dirs.view(1, ln*3).cuda().float()
-
-        # size = torch.ones((1, ln)).cuda().float() * 0.0025
-        # intensity = torch.from_numpy(np.array(para['intensity'])).float().cuda()
-        # intensity = intensity.view(1, 1, 1).repeat(1, ln, 3).cuda()
-
-        # rgb_ratio = torch.from_numpy(np.array(para['rgb_ratio'])).float().cuda()
-        # rgb_ratio = rgb_ratio.view(1, 1, 3).repeat(1, ln, 1).cuda()
-
-        # distribution = torch.from_numpy(para['distribution']).cuda().float()
-        # distribution = distribution.view(1, ln, 1).repeat(1, 1, 3)
-
-        # light_rec = distribution * intensity * rgb_ratio
-        # light_rec = light_rec.contiguous().view(1, ln*3)
-
-        # env = util.convert_to_panorama(dirs, size, light_rec)
-        # env = env.detach().cpu().numpy()[0]
-        # env = util.tonemapping(env) * 255.0
-        # im = np.transpose(env, (1, 2, 0))
-        # im = Image.fromarray(im.astype('uint8'))
-
-        # nm_ = nm.split('.')[0]
-        # im.save('./tmp/{}_rec.png'.format(nm_))
-
-        # gt = util.tonemapping(hdr) * 255.0
-        # gt = Image.fromarray(gt.astype('uint8'))
-        # gt.save('./tmp/{}_gt.png'.format(nm_))
-
-        # light = util.tonemapping(hdr) * 255.0 * map
-        # light = Image.fromarray(light.astype('uint8'))
-        # light.save('./tmp/{}_light.png'.format(nm_))

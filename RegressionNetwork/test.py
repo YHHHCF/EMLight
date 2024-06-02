@@ -62,7 +62,7 @@ for i, para in enumerate(dataloader):
     intensity_pred = pred['intensity'] * 500
     intensity_gt = para['intensity'].to(device) * 500
 
-    print(torch.any(distribution_pred < 0), torch.any(rgb_ratio_pred < 0), intensity_pred < 0)
+    # print(torch.any(distribution_pred < 0), torch.any(rgb_ratio_pred < 0), intensity_pred < 0)
     # print(torch.any(distribution_gt < 0), torch.any(rgb_ratio_gt < 0), intensity_gt < 0)
 
     print (intensity_pred, intensity_gt)
