@@ -57,7 +57,8 @@ class ParameterDataset(Dataset):
 
         exr = self.handle.read_hdr(crop_path)
         input, alpha = self.tone(exr)
-        training_pair['crop'] = self.normalize(self.to_tensor(input))
+        # training_pair['crop'] = self.normalize(self.to_tensor(input))
+        training_pair['crop'] = self.to_tensor(input)
 
         gt_path = pair[1]
         handle = open(gt_path, 'rb')
