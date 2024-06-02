@@ -22,10 +22,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 h = PanoramaHandler()
 batch_size = 1
 
-save_dir = "./checkpoints"
-test_dir = "../Dataset/LavalIndoor/test/"
-train_dir = "../Dataset/LavalIndoor/"
-hdr_train_dataset = data.ParameterDataset(train_dir)
+hdr_train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/")
 dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 Model = DenseNet.DenseNet().to(device)
