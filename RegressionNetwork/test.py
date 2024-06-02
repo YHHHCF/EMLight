@@ -22,7 +22,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 h = PanoramaHandler()
 batch_size = 1
 
-hdr_train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/")
+hdr_train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", use_small=False, test=True)
 dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 Model = DenseNet.DenseNet().to(device)
@@ -33,8 +33,6 @@ if load_weight:
 tone = util.TonemapHDR(gamma=2.4, percentile=99, max_mapping=0.9)
 
 for i, para in enumerate(dataloader):
-    if i >= 100:
-        break
     ln = 96
 
     nm = para['name'][0]
