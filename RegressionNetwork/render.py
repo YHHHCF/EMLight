@@ -131,16 +131,14 @@ if __name__=="__main__":
 
     i = 0
     for nm in nms:
-        if nm.endswith('_gt.exr'):
-            names = [nm, nm.replace('_gt.exr', '_pred.exr')]
-            for name in names:
-                hdr_path = base_dir + name
-                mirror_path = save_dir + name.replace('.exr', '_mirror.png')
-                matte_path = save_dir + name.replace('.exr', '_matte.png')
-                diffuse_path = save_dir + name.replace('.exr', '_diffuse.png')
+        if nm.endswith('_pred.exr'):
+            hdr_path = base_dir + nm
+            mirror_path = save_dir + nm.replace('.exr', '_mirror.png')
+            matte_path = save_dir + nm.replace('.exr', '_matte.png')
+            diffuse_path = save_dir + nm.replace('.exr', '_diffuse.png')
 
-                render(hdr_path, mirror_path, mode='mirror')
-                render(hdr_path, matte_path, mode='matte')
-                render(hdr_path, diffuse_path, mode='diffuse')
+            render(hdr_path, mirror_path, mode='mirror')
+            render(hdr_path, matte_path, mode='matte')
+            render(hdr_path, diffuse_path, mode='diffuse')
             i += 1
             print(i)
