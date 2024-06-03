@@ -1,7 +1,31 @@
 import bpy
 import sys
+import os
+
+# Function to clean up memory
+def clean_memory():
+    # Clear all objects
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete(use_global=False)
+
+    # Remove all meshes, materials, and other data blocks
+    bpy.ops.outliner.orphans_purge(do_recursive=True)
+    for block in bpy.data.meshes:
+        bpy.data.meshes.remove(block)
+    for block in bpy.data.materials:
+        bpy.data.materials.remove(block)
+    for block in bpy.data.images:
+        bpy.data.images.remove(block)
+    for block in bpy.data.textures:
+        bpy.data.textures.remove(block)
+    for block in bpy.data.cameras:
+        bpy.data.cameras.remove(block)
+    for block in bpy.data.lights:
+        bpy.data.lights.remove(block)
 
 def render(exr_path, output_image_path, mode):
+    clean_memory()
+
     # Clear all existing objects
     bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.object.select_by_type(type='MESH')
@@ -21,6 +45,11 @@ def render(exr_path, output_image_path, mode):
     bpy.context.scene.camera = camera
     bpy.context.scene.render.filepath = output_image_path
     bpy.context.scene.render.image_settings.file_format = 'PNG'
+
+    # Set lower resolution for rendering
+    bpy.context.scene.render.resolution_x = 256  # Set width of the output image
+    bpy.context.scene.render.resolution_y = 256  # Set height of the output image
+    bpy.context.scene.render.resolution_percentage = 100  # Percentage of the resolution
 
     # Disable all lights in the scene
     for light in bpy.data.lights:
@@ -96,9 +125,22 @@ def render(exr_path, output_image_path, mode):
     bpy.ops.render.render(write_still=True)
 
 if __name__=="__main__":
-    # Get the EXR file path and output image path from command line arguments
-    exr_path = "AG8A8645-others-40-1.79482-0.98343_gt.exr"
+    base_dir = "./results/paper_pretrained/results_no_norm/"
+    save_dir = base_dir + "rendered/"
+    nms = os.listdir(base_dir)
 
-    render(exr_path, './output_mirror.png', mode='mirror')
-    render(exr_path, './output_diffuse.png', mode='diffuse')
-    render(exr_path, './output_matte.png', mode='matte')
+    i = 0
+    for nm in nms:
+        if nm.endswith('_gt.exr'):
+            names = [nm, nm.replace('_gt.exr', '_pred.exr')]
+            for name in names:
+                hdr_path = base_dir + name
+                mirror_path = save_dir + name.replace('.exr', '_mirror.png')
+                matte_path = save_dir + name.replace('.exr', '_matte.png')
+                diffuse_path = save_dir + name.replace('.exr', '_diffuse.png')
+
+                render(hdr_path, mirror_path, mode='mirror')
+                render(hdr_path, matte_path, mode='matte')
+                render(hdr_path, diffuse_path, mode='diffuse')
+            i += 1
+            print(i)
