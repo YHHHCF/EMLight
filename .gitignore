@@ -9,6 +9,7 @@ Dataset/LavalIndoor/pkl*
 Dataset/LavalIndoor/dataset_ICCV_stage1.tar.gz
 Dataset/LavalIndoor/dataset_ICCV_stage2.tar.gz
 RegressionNetwork/results/
+RegressionNetwork/summary/
 RegressionNetwork/checkpoints/
 RegressionNetwork/.ipynb_checkpoints/
 *__pycache__*

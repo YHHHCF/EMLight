@@ -39,8 +39,6 @@ class ParameterDataset(Dataset):
                     self.pairs.append([crop_path, gt_path])
         self.data_len = len(self.pairs)
         self.to_tensor = transforms.ToTensor()
-        self.normalize = transforms.Normalize(mean=[0.48548178, 0.48455666, 0.46329196],
-                                              std=[0.21904471, 0.21578524, 0.23359051])
 
         self.tone = util.TonemapHDR(gamma=2.4, percentile=50, max_mapping=0.5)
         self.handle = util.PanoramaHandler()
@@ -60,7 +58,6 @@ class ParameterDataset(Dataset):
 
         exr = self.handle.read_hdr(crop_path)
         input, alpha = self.tone(exr)
-        # training_pair['crop'] = self.normalize(self.to_tensor(input))
         training_pair['crop'] = self.to_tensor(input)
 
         gt_path = pair[1]
