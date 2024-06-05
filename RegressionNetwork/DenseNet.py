@@ -9,14 +9,60 @@ from collections import OrderedDict
 import math
 import numpy as np
 
+class SemanticsDenseNet(nn.Module):
+    def __init__(self):
+        super(SemanticsDenseNet, self).__init__()
+
+        self.img_features = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
+        self.semantic_features = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
+        H = 1024
+
+        # Linear layer
+        self.img_fc = nn.Linear(1000, H)
+        self.combine_fc = nn.Linear(2000, H)
+
+        self.fc_dist = nn.Linear(H, 96)  # 12,12,32
+        self.fc_intensity = nn.Linear(H, 1)
+        self.fc_rgb_ratio = nn.Linear(H, 3)
+        self.fc_ambient = nn.Linear(H, 3)
+        self.relu = nn.ReLU()
+        self.use_relu = False
+        self.leaky_relu = nn.LeakyReLU(0.01)
+
+    # x, input of shape (N=16, 3, 192, 256)
+    def forward(self, x):
+        img_feature = self.img_features(x) # (16, 1000)
+        img_feature = self.relu(img_feature)
+        semantic_feature = self.semantic_features(x)
+        semantic_feature = self.relu(semantic_feature) # (16, 1000)
+        combined_feature = torch.hstack((img_feature, semantic_feature)) # (16, 2000)
+        features = self.img_fc(img_feature) + self.combine_fc(combined_feature)  # (16, 1000)
+        out = self.relu(features)
+
+        dist_pred = self.fc_dist(out) # (16, 96)
+        if self.use_relu:
+            dist_pred = self.leaky_relu(dist_pred)
+            dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
+            dist_pred = dist_pred / dist_pred_sum
+
+        intenstiy_pred = self.fc_intensity(out) # (16, 1)
+
+        rgb_ratio_pred = self.fc_rgb_ratio(out) # (16, 3)
+
+        ambient_pred = self.fc_ambient(out) # (16, 3)
+
+        return {'distribution': dist_pred,
+                'intensity': intenstiy_pred,
+                'rgb_ratio': rgb_ratio_pred,
+                'ambient': ambient_pred,
+                }
+
 
 class OriginalDenseNet(nn.Module):
     def __init__(self):
         super(OriginalDenseNet, self).__init__()
 
         self.features = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
-        # for param in self.features.parameters():
-        #     param.require_grad = False
         H = 1024
 
         # Linear layer
@@ -26,7 +72,7 @@ class OriginalDenseNet(nn.Module):
         self.fc_rgb_ratio = nn.Linear(H, 3)
         self.fc_ambient = nn.Linear(H, 3)
         self.relu = nn.ReLU()
-        self.use_relu = True
+        self.use_relu = False
         self.leaky_relu = nn.LeakyReLU(0.01)
 
     # x, input of shape (N=16, 3, 192, 256)

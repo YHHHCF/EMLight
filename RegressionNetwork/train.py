@@ -25,16 +25,17 @@ data_dir = "../Dataset/LavalIndoor/"
 train_dataset = data.ParameterDataset(data_dir, mode="train")
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-val_dataset = data.ParameterDataset(data_dir, mode="test")
+val_dataset = data.ParameterDataset(data_dir, mode="val")
 val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-Model = DenseNet.OriginalDenseNet().to(device)
+# Model = DenseNet.OriginalDenseNet().to(device)
+Model = DenseNet.SemanticsDenseNet().to(device)
 
 torch.set_grad_enabled(True)
 Model.train()
 
-load_weight = True
+load_weight = False
 if load_weight:
     Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
     print('load trained model')
@@ -61,6 +62,7 @@ for epoch in range(0, 500):
     print('{} optim: {}'.format(epoch, optimizer.param_groups[0]['lr']))
 
     for i, para in enumerate(train_dataloader):
+        semantics = para['semantics'].to(device)
         input = para['crop'].to(device) # (N=16, 3, 192, 256)
         pred = Model(input)
 
