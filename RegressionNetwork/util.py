@@ -300,8 +300,6 @@ def write_exr(out_file, data):
     exr.writePixels({'R': red.tostring(), 'G': green.tostring(), 'B': blue.tostring()})
 
 
-
-
 class SinkhornDistance():
     def __init__(self, eps=1e-9, max_iter=5):
         super(SinkhornDistance, self).__init__()

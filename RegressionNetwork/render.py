@@ -125,13 +125,13 @@ def render(exr_path, output_image_path, mode):
     bpy.ops.render.render(write_still=True)
 
 if __name__=="__main__":
-    base_dir = "./results/paper_pretrained/results_no_norm/"
+    base_dir = "./results/semantic_model/results/"
     save_dir = base_dir + "rendered/"
     nms = os.listdir(base_dir)
 
     i = 0
     for nm in nms:
-        if nm.endswith('_pred.exr'):
+        if nm.endswith('.exr'):
             hdr_path = base_dir + nm
             mirror_path = save_dir + nm.replace('.exr', '_mirror.png')
             matte_path = save_dir + nm.replace('.exr', '_matte.png')
