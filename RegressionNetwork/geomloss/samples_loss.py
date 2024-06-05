@@ -77,8 +77,8 @@ class SamplesLoss(Module):
     def sinkhorn_tensorized(self, α, x, β, y, p=2, blur=.05, reach=None, diameter=None, scaling=.5):
         _, M, _ = y.shape
 
-        cost = (lambda m, n: self.distance.spherical_distance(m, n) / 2)
-        # cost = (lambda m, n: squared_distances(m, n) / 2)
+        # cost = (lambda m, n: self.distance.spherical_distance(m, n) / 2)
+        cost = (lambda m, n: squared_distances(m, n) / 2)
 
         C_xx, C_yy = (cost(x, x.detach()), cost(y, y.detach()))  # (B,N,N), (B,M,M)
         C_xy, C_yx = (cost(x, y.detach()), cost(y, x.detach()))  # (B,N,M), (B,M,N)

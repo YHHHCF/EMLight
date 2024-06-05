@@ -17,15 +17,15 @@ import imageio
 imageio.plugins.freeimage.download()
 
 h = PanoramaHandler()
-batch_size = 32
+batch_size = 16
 
 save_dir = "./checkpoints"
 data_dir = "../Dataset/LavalIndoor/"
-# train_dataset = data.ParameterDataset(data_dir, mode="train_small", small_num=128)
+# train_dataset = data.ParameterDataset(data_dir, mode="train_small", small_num=16384)
 train_dataset = data.ParameterDataset(data_dir, mode="train")
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-val_dataset = data.ParameterDataset(data_dir, mode="val")
+val_dataset = data.ParameterDataset(data_dir, mode="test")
 val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -34,7 +34,7 @@ Model = DenseNet.OriginalDenseNet().to(device)
 torch.set_grad_enabled(True)
 Model.train()
 
-load_weight = False
+load_weight = True
 if load_weight:
     Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
     print('load trained model')
@@ -65,7 +65,7 @@ for epoch in range(0, 500):
         pred = Model(input)
 
         dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device) # (16, ln=96)
-        _, intensity_gt = pred['intensity'], para['intensity'].to(device).view(-1, 1) # (16, 1)
+        intensity_gt = para['intensity'].to(device).view(-1, 1) # (16, 1)
         rgb_ratio_pred, rgb_ratio_gt = pred['rgb_ratio'], para['rgb_ratio'].to(device) # (16, 3)
         ambient_pred, ambient_gt = pred['ambient'], para['ambient'].to(device) # (16, 3)
 

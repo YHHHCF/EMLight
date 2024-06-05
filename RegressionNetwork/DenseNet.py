@@ -10,6 +10,51 @@ import math
 import numpy as np
 
 
+class OriginalDenseNet(nn.Module):
+    def __init__(self):
+        super(OriginalDenseNet, self).__init__()
+
+        self.features = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
+        # for param in self.features.parameters():
+        #     param.require_grad = False
+        H = 1024
+
+        # Linear layer
+        self.fc = nn.Linear(1000, H)
+        self.fc_dist = nn.Linear(H, 96)  # 12,12,32
+        self.fc_intensity = nn.Linear(H, 1)
+        self.fc_rgb_ratio = nn.Linear(H, 3)
+        self.fc_ambient = nn.Linear(H, 3)
+        self.relu = nn.ReLU()
+        self.use_relu = False
+        self.leaky_relu = nn.LeakyReLU(0.01)
+
+    # x, input of shape (N=16, 3, 192, 256)
+    def forward(self, x):
+        features = self.features(x) # (16, 1000)
+        out = F.relu(features, inplace=True)
+        out = self.fc(out) # (16, 1024)
+
+        dist_pred = self.fc_dist(out) # (16, 96)
+        if self.use_relu:
+            dist_pred = self.leaky_relu(dist_pred)
+            # dist_pred_min, _ = torch.min(dist_pred, dim=1, keepdim=True)
+            # dist_pred = dist_pred - dist_pred_min
+            # dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
+            # dist_pred = dist_pred / dist_pred_sum
+
+        intenstiy_pred = self.fc_intensity(out) # (16, 1)
+
+        rgb_ratio_pred = self.fc_rgb_ratio(out) # (16, 3)
+
+        ambient_pred = self.fc_ambient(out) # (16, 3)
+
+        return {'distribution': dist_pred,
+                'intensity': intenstiy_pred,
+                'rgb_ratio': rgb_ratio_pred,
+                'ambient': ambient_pred,
+                }
+
 
 class _Transition(nn.Sequential):
     def __init__(self,num_input_features,num_output_features):
@@ -155,51 +200,6 @@ class DenseNet(nn.Module):
 
         ambient_pred = self.fc_ambient(out) # (16, 3)
         # ambient_pred = self.relu(ambient_pred)
-
-        return {'distribution': dist_pred,
-                'intensity': intenstiy_pred,
-                'rgb_ratio': rgb_ratio_pred,
-                'ambient': ambient_pred,
-                }
-
-class OriginalDenseNet(nn.Module):
-    def __init__(self):
-        super(OriginalDenseNet, self).__init__()
-
-        self.features = torch.hub.load('pytorch/vision:v0.10.0', 'densenet121', pretrained=True)
-        # for param in self.features.parameters():
-        #     param.require_grad = False
-        H = 1024
-
-        # Linear layer
-        self.fc = nn.Linear(1000, H)
-        self.fc_dist = nn.Linear(H, 96)  # 12,12,32
-        self.fc_intensity = nn.Linear(H, 1)
-        self.fc_rgb_ratio = nn.Linear(H, 3)
-        self.fc_ambient = nn.Linear(H, 3)
-        self.relu = nn.ReLU()
-        self.use_leaky_relu = False
-        self.leaky_relu = nn.LeakyReLU(0.01)
-
-    # x, input of shape (N=16, 3, 192, 256)
-    def forward(self, x):
-        features = self.features(x) # (16, 1000)
-        out = F.relu(features, inplace=True)
-        out = self.fc(out) # (16, 1024)
-
-        dist_pred = self.fc_dist(out) # (16, 96)
-        if self.use_leaky_relu:
-            dist_pred = self.leaky_relu(dist_pred)
-            dist_pred_min, _ = torch.min(dist_pred, dim=1, keepdim=True)
-            dist_pred = dist_pred - dist_pred_min
-            dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
-            dist_pred = dist_pred / dist_pred_sum
-
-        intenstiy_pred = self.fc_intensity(out) # (16, 1)
-
-        rgb_ratio_pred = self.fc_rgb_ratio(out) # (16, 3)
-
-        ambient_pred = self.fc_ambient(out) # (16, 3)
 
         return {'distribution': dist_pred,
                 'intensity': intenstiy_pred,

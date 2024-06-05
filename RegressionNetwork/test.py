@@ -20,10 +20,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 h = PanoramaHandler()
-batch_size = 1
+batch_size = 16
+ln = 96
 
 test_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", mode="test")
-dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 l2 = nn.MSELoss().to(device)
 Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
@@ -31,83 +32,81 @@ Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
 Model = DenseNet.OriginalDenseNet().to(device)
 load_weight = True
 if load_weight:
-    Model.load_state_dict(torch.load("./checkpoints/latest_net.pth"))
+    Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
     print ('load trained model')
 tone = util.TonemapHDR(gamma=2.4, percentile=99, max_mapping=0.9)
 
 for i, para in enumerate(dataloader):
-    ln = 96
-
     nm = para['name'][0]
 
     input = para['crop'].to(device)
     pred = Model(input)
 
-     # (1, ln=96)
-    dist_pred = pred['distribution']
-    dist_gt = para['distribution'].to(device)
+    dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device) # (16, ln=96)
+    intensity_gt = para['intensity'].to(device).view(-1, 1) # (16, 1)
+    rgb_ratio_pred, rgb_ratio_gt = pred['rgb_ratio'], para['rgb_ratio'].to(device) # (16, 3)
+    ambient_pred, ambient_gt = pred['ambient'], para['ambient'].to(device) # (16, 3)
 
-     # (1, 3)
-    rgb_ratio_pred = pred['rgb_ratio']
-    rgb_ratio_gt = para['rgb_ratio'].to(device)
-    print(rgb_ratio_pred, rgb_ratio_gt)
+    dist_pred[dist_pred < 0] = 0
+    dist_pred[dist_pred > 1] = 1
 
-    # scalar
-    intensity_gt = para['intensity'].to(device) * 500
-    intensity_pred = intensity_gt
+    rgb_ratio_pred[rgb_ratio_pred < 0] = 0
+    rgb_ratio_pred[rgb_ratio_pred > 1] = 1
+
+    ambient_pred[ambient_pred < 0] = 0
+
+    dist_pred = dist_pred.view(-1, ln, 1) # (N=16, 96, 1)
+    dist_gt = dist_gt.view(-1, ln, 1) # (N=16, 96, 1)
+    dist_emloss = (Sam_Loss(dist_pred, dist_gt).sum() / batch_size) * 1000.0
+    dist_l2loss = (l2(dist_pred, dist_gt) / batch_size) * 1000.0
+    rgb_loss = (l2(rgb_ratio_pred, rgb_ratio_gt) / batch_size) * 100.0
+    ambient_loss = (l2(ambient_pred, ambient_gt) / batch_size) * 1.0
+
+    print("dist_emloss:{:.3f}, dist_l2loss:{:.3f}, rgb_loss:{:.4f}, ambient_loss:{:.5f}"
+          .format(dist_emloss.item(), dist_l2loss.item(), rgb_loss.item(), ambient_loss.item()))
 
     dirs = util.sphere_points(ln)
     dirs = torch.from_numpy(dirs).float()
     dirs = dirs.view(1, ln * 3).to(device)
 
     size = torch.ones((1, ln)).to(device) * 0.0025
-    rgb_ratio_pred_repeat = rgb_ratio_pred[0].view(1, 1, 3).repeat(1, ln, 1) # (1, ln, 3)
-    intensity_pred_repeat = intensity_pred[0].view(1, 1, 1).repeat(1, ln, 1) # (1, ln, 1)
-    dist_pred = dist_pred[0].view(1, ln, 1) # (1, ln, 1)
-    color_pred = rgb_ratio_pred_repeat * intensity_pred_repeat * dist_pred # (1, ln, 3)
-    color_pred = color_pred.view(1, ln*3) # (1, 3 * ln)
 
-    hdr_pred = util.convert_to_panorama(dirs, size, color_pred)
-    hdr_pred = np.squeeze(hdr_pred[0].detach().cpu().numpy())
-    hdr_pred = np.transpose(hdr_pred, (1, 2, 0))
+    intensity_gt = intensity_gt[0].view(1, 1, 1).repeat(1, ln, 3) * 500
+    dist_pred = dist_pred[0].view(1, ln, 1).repeat(1, 1, 3)
+    rgb_ratio_pred = rgb_ratio_pred[0].view(1, 1, 3).repeat(1, ln, 1)
 
-    ldr_pred = tone(hdr_pred)[0] * 255.0
-    ldr_pred = Image.fromarray(ldr_pred.astype(np.uint8))
-    ldr_pred.save('./results/{}_ldr_pred.jpg'.format(i))
+    # use intensity from ground truth here, as mentioned in the writeup
+    light_pred = (dist_pred * intensity_gt * rgb_ratio_pred).view(1, ln * 3)
+    env_pred = util.convert_to_panorama(dirs, size, light_pred)
+    env_pred = np.squeeze(env_pred[0].detach().cpu().numpy())
+    env_pred = tone(env_pred)[0].transpose((1, 2, 0)).astype('float32') * 255.0
 
-    hdr_pred = hdr_pred.astype('float32')
-    hdr_pred_path = './results/{}_pred.exr'.format(nm)
-    util.write_exr(hdr_pred_path, hdr_pred)
+    dist_gt = dist_gt[0].view(1, ln, 1).repeat(1, 1, 3)
+    rgb_ratio_gt = rgb_ratio_gt[0].view(1, 1, 3).repeat(1, ln, 1)
 
-    rgb_ratio = np.squeeze(rgb_ratio_pred[0].view(3).detach().cpu().numpy())
-    intensity = np.squeeze(intensity_pred[0].detach().cpu().numpy())
-    distribution = np.squeeze(dist_pred[0].view(ln).detach().cpu().numpy())
-    parametric_lights = {"distribution": distribution, "rgb_ratio": rgb_ratio, 'intensity': intensity}
+    light_gt = (dist_gt * intensity_gt * rgb_ratio_gt).view(1, ln * 3)
+    env_gt = util.convert_to_panorama(dirs, size, light_gt)
+    env_gt = np.squeeze(env_gt[0].detach().cpu().numpy())
+    env_gt = tone(env_gt)[0].transpose((1, 2, 0)).astype('float32') * 255.0
+    env_gt_pred = np.vstack((env_gt, env_pred))
+    env_gt_pred = Image.fromarray(env_gt_pred.astype('uint8')).resize((256, 256))
 
-    with open('./results/' + nm + '.pickle', 'wb') as handle:
-        pickle.dump(parametric_lights, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    crop = np.squeeze(input[0].detach().cpu().numpy()).transpose((1, 2, 0)) * 255.0
+    crop = Image.fromarray(crop.astype('uint8')).resize((256, 256))
 
-    rgb_ratio_gt_repeat = rgb_ratio_gt[0].view(1, 1, 3).repeat(1, ln, 1)
-    intensity_gt_repeat = intensity_gt[0].view(1, 1, 1).repeat(1, ln, 1)
-    dist_gt = dist_gt[0].view(1, ln, 1)
-    color_gt = rgb_ratio_gt * intensity_gt * dist_gt
-    color_gt = color_gt.view(1, ln * 3)
+    im = np.hstack((np.array(crop), np.array(env_gt_pred)))
+    im = Image.fromarray(im.astype('uint8'))
+    im.save('./results/{}.jpg'.format(nm))
 
-    hdr_gt = util.convert_to_panorama(dirs, size, color_gt)
-    hdr_gt = np.squeeze(hdr_gt[0].detach().cpu().numpy())
-    hdr_gt = np.transpose(hdr_gt, (1, 2, 0))
+    env_gt /= 500
+    env_pred /= 500
 
-    ldr_gt = tone(hdr_gt)[0] * 255.0
-    ldr_gt = Image.fromarray(ldr_gt.astype(np.uint8))
-    ldr_gt.save('./results/{}_ldr_gt.jpg'.format(i))
+    env_gt_path = './results/{}_gt.exr'.format(nm)
+    util.write_exr(env_gt_path, env_gt)
 
-    hdr_gt = hdr_gt.astype('float32')
-    hdr_gt_path = './results/{}_gt.exr'.format(nm)
-    util.write_exr(hdr_gt_path, hdr_gt)
-
-    dist_emloss = Sam_Loss(dist_pred, dist_gt).sum() * 1000.0
-    rgb_loss = l2(rgb_ratio_pred, rgb_ratio_gt) * 100.0
-
-    print("dist_emloss:{}, rgb_loss:{}".format(dist_emloss.item(), rgb_loss.item()))
+    # use intensity from ground truth here, as mentioned in the writeup
+    adjust_ratio = np.max(env_gt) / np.max(env_pred)
+    env_pred_path = './results/{}_pred.exr'.format(nm)
+    util.write_exr(env_pred_path, env_pred * adjust_ratio)
 
     print (i)
