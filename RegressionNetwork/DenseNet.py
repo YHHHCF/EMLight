@@ -177,9 +177,9 @@ class OriginalDenseNet(nn.Module):
         self.fc_intensity = nn.Linear(H, 1)
         self.fc_rgb_ratio = nn.Linear(H, 3)
         self.fc_ambient = nn.Linear(H, 3)
-        self.softmax = nn.Softmax(dim=1)
         self.relu = nn.ReLU()
         self.use_leaky_relu = False
+        self.leaky_relu = nn.LeakyReLU(0.01)
 
     # x, input of shape (N=16, 3, 192, 256)
     def forward(self, x):

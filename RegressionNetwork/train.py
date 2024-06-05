@@ -17,12 +17,16 @@ import imageio
 imageio.plugins.freeimage.download()
 
 h = PanoramaHandler()
-batch_size = 8
+batch_size = 32
 
 save_dir = "./checkpoints"
-train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", mode="train_small", small_num=128)
-# train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", mode="train")
+data_dir = "../Dataset/LavalIndoor/"
+# train_dataset = data.ParameterDataset(data_dir, mode="train_small", small_num=128)
+train_dataset = data.ParameterDataset(data_dir, mode="train")
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+val_dataset = data.ParameterDataset(data_dir, mode="val")
+val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Model = DenseNet.OriginalDenseNet().to(device)
@@ -56,8 +60,6 @@ for epoch in range(0, 500):
 
     print('{} optim: {}'.format(epoch, optimizer.param_groups[0]['lr']))
 
-    # lambda_G = lambda epoch: 0.5 ** (epoch // 30)
-
     for i, para in enumerate(train_dataloader):
         input = para['crop'].to(device) # (N=16, 3, 192, 256)
         pred = Model(input)
@@ -69,10 +71,10 @@ for epoch in range(0, 500):
 
         dist_pred = dist_pred.view(-1, ln, 1) # (N=16, 96, 1)
         dist_gt = dist_gt.view(-1, ln, 1) # (N=16, 96, 1)
-        dist_emloss = Sam_Loss(dist_pred, dist_gt).sum() * 1000.0
-        dist_l2loss = l2(dist_pred, dist_gt) * 1000.0
-        rgb_loss = l2(rgb_ratio_pred, rgb_ratio_gt) * 100.0
-        ambient_loss = l2(ambient_pred, ambient_gt) * 1.0
+        dist_emloss = (Sam_Loss(dist_pred, dist_gt).sum() / batch_size) * 1000.0
+        dist_l2loss = (l2(dist_pred, dist_gt) / batch_size) * 1000.0
+        rgb_loss = (l2(rgb_ratio_pred, rgb_ratio_gt) / batch_size) * 100.0
+        ambient_loss = (l2(ambient_pred, ambient_gt) / batch_size) * 1.0
 
         loss = dist_emloss + dist_l2loss + rgb_loss + ambient_loss
 
@@ -81,10 +83,37 @@ for epoch in range(0, 500):
         optimizer.step()
 
         if i % 10 == 0:
-            print("epoch {:0>3d} batch {:0>3d}, dist_emloss:{}, dist_l2loss:{}, rgb_loss:{}, ambient_loss:{}"
+            print("epoch {:0>3d} batch {:0>3d}, dist_emloss:{:.3f}, dist_l2loss:{:.3f}, rgb_loss:{:.4f}, ambient_loss:{:.5f}"
                   .format(epoch, i, dist_emloss.item(), dist_l2loss.item(), rgb_loss.item(), ambient_loss.item()))
 
         if i % 100 == 0:
+            # validation
+            with torch.no_grad():
+                val_dist_emloss = 0
+                val_dist_l2loss = 0
+                val_rgb_loss = 0
+                val_ambient_loss = 0
+                val_num = 0
+                for val_i, val_para in enumerate(val_dataloader):
+                    val_input = val_para['crop'].to(device)
+                    val_pred = Model(val_input)
+
+                    val_dist_pred, val_dist_gt = val_pred['distribution'], val_para['distribution'].to(device)
+                    val_rgb_ratio_pred, val_rgb_ratio_gt = val_pred['rgb_ratio'], val_para['rgb_ratio'].to(device)
+                    val_ambient_pred, val_ambient_gt = val_pred['ambient'], val_para['ambient'].to(device)
+
+                    val_dist_pred = val_dist_pred.view(-1, ln, 1)
+                    val_dist_gt = val_dist_gt.view(-1, ln, 1)
+                    val_dist_l2loss += (l2(val_dist_pred, val_dist_gt) / batch_size) * 1000.0
+                    val_rgb_loss += (l2(val_rgb_ratio_pred, val_rgb_ratio_gt) / batch_size) * 100.0
+                    val_ambient_loss += (l2(val_ambient_pred, val_ambient_gt) / batch_size) * 1.0
+                    val_num += 1
+                val_dist_l2loss /= val_num
+                val_rgb_loss /= val_num
+                val_ambient_loss /= val_num
+                print("Validation:       \
+                      dist_l2loss:{:.3f}, rgb_loss:{:.4f}, ambient_loss:{:.5f}".format(val_dist_l2loss.item(), val_rgb_loss.item(), val_ambient_loss.item()))
+
             dirs = util.sphere_points(ln)
             dirs = torch.from_numpy(dirs).float()
             dirs = dirs.view(1, ln * 3).to(device)

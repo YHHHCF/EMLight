@@ -106,7 +106,6 @@ for i, para in enumerate(dataloader):
     util.write_exr(hdr_gt_path, hdr_gt)
 
     dist_emloss = Sam_Loss(dist_pred, dist_gt).sum() * 1000.0
-    intensity_loss = l2(intensity_pred, intensity_gt) * 0.1
     rgb_loss = l2(rgb_ratio_pred, rgb_ratio_gt) * 100.0
 
     print("dist_emloss:{}, rgb_loss:{}".format(dist_emloss.item(), rgb_loss.item()))
