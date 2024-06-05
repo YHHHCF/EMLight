@@ -29,11 +29,12 @@ dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 l2 = nn.MSELoss().to(device)
 Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
 
+Model = DenseNet.DenseNet().to(device)
 # Model = DenseNet.OriginalDenseNet().to(device)
-Model = DenseNet.SemanticsDenseNet().to(device)
+# Model = DenseNet.SemanticsDenseNet().to(device)
 load_weight = True
 if load_weight:
-    Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
+    Model.load_state_dict(torch.load("./checkpoints/paper/latest_net.pth", map_location=device))
     print ('load trained model')
 tone = util.TonemapHDR(gamma=2.4, percentile=99, max_mapping=0.9)
 
@@ -41,6 +42,8 @@ for i, para in enumerate(dataloader):
     nm = para['name'][0]
 
     input = para['crop'].to(device)
+    # semantics = para['semantics'].to(device)
+    # pred = Model(input, semantics)
     pred = Model(input)
 
     dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device) # (16, ln=96)

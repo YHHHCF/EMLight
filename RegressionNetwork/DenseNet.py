@@ -26,14 +26,14 @@ class SemanticsDenseNet(nn.Module):
         self.fc_rgb_ratio = nn.Linear(H, 3)
         self.fc_ambient = nn.Linear(H, 3)
         self.relu = nn.ReLU()
-        self.use_relu = False
+        self.use_relu = True
         self.leaky_relu = nn.LeakyReLU(0.01)
 
     # x, input of shape (N=16, 3, 192, 256)
-    def forward(self, x):
+    def forward(self, x, semantics):
         img_feature = self.img_features(x) # (16, 1000)
         img_feature = self.relu(img_feature)
-        semantic_feature = self.semantic_features(x)
+        semantic_feature = self.semantic_features(semantics)
         semantic_feature = self.relu(semantic_feature) # (16, 1000)
         combined_feature = torch.hstack((img_feature, semantic_feature)) # (16, 2000)
         features = self.img_fc(img_feature) + self.combine_fc(combined_feature)  # (16, 1000)
@@ -72,7 +72,7 @@ class OriginalDenseNet(nn.Module):
         self.fc_rgb_ratio = nn.Linear(H, 3)
         self.fc_ambient = nn.Linear(H, 3)
         self.relu = nn.ReLU()
-        self.use_relu = False
+        self.use_relu = True
         self.leaky_relu = nn.LeakyReLU(0.01)
 
     # x, input of shape (N=16, 3, 192, 256)
@@ -230,11 +230,6 @@ class DenseNet(nn.Module):
         out = self.fc(out) # (16, 1024)
 
         dist_pred = self.fc_dist(out) # (16, 96)
-        dist_pred = self.leaky_relu(dist_pred)
-        dist_pred_min, _ = torch.min(dist_pred, dim=1, keepdim=True)
-        dist_pred = dist_pred - dist_pred_min
-        dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
-        dist_pred = dist_pred / dist_pred_sum
 
         intenstiy_pred = self.fc_intensity(out) # (16, 1)
         # intenstiy_pred = self.relu(intenstiy_pred)

@@ -29,13 +29,14 @@ val_dataset = data.ParameterDataset(data_dir, mode="val")
 val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+Model = DenseNet.DenseNet().to(device)
 # Model = DenseNet.OriginalDenseNet().to(device)
-Model = DenseNet.SemanticsDenseNet().to(device)
+# Model = DenseNet.SemanticsDenseNet().to(device)
 
 torch.set_grad_enabled(True)
 Model.train()
 
-load_weight = False
+load_weight = True
 if load_weight:
     Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
     print('load trained model')
@@ -62,8 +63,9 @@ for epoch in range(0, 500):
     print('{} optim: {}'.format(epoch, optimizer.param_groups[0]['lr']))
 
     for i, para in enumerate(train_dataloader):
-        semantics = para['semantics'].to(device)
+        # semantics = para['semantics'].to(device)
         input = para['crop'].to(device) # (N=16, 3, 192, 256)
+        # pred = Model(input, semantics)
         pred = Model(input)
 
         dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device) # (16, ln=96)
@@ -98,6 +100,8 @@ for epoch in range(0, 500):
                 val_num = 0
                 for val_i, val_para in enumerate(val_dataloader):
                     val_input = val_para['crop'].to(device)
+                    # val_semantics = val_para['semantics'].to(device)
+                    # val_pred = Model(val_input, val_semantics)
                     val_pred = Model(val_input)
 
                     val_dist_pred, val_dist_gt = val_pred['distribution'], val_para['distribution'].to(device)
