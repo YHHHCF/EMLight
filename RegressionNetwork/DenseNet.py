@@ -26,7 +26,7 @@ class OriginalDenseNet(nn.Module):
         self.fc_rgb_ratio = nn.Linear(H, 3)
         self.fc_ambient = nn.Linear(H, 3)
         self.relu = nn.ReLU()
-        self.use_relu = False
+        self.use_relu = True
         self.leaky_relu = nn.LeakyReLU(0.01)
 
     # x, input of shape (N=16, 3, 192, 256)
@@ -38,10 +38,8 @@ class OriginalDenseNet(nn.Module):
         dist_pred = self.fc_dist(out) # (16, 96)
         if self.use_relu:
             dist_pred = self.leaky_relu(dist_pred)
-            # dist_pred_min, _ = torch.min(dist_pred, dim=1, keepdim=True)
-            # dist_pred = dist_pred - dist_pred_min
-            # dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
-            # dist_pred = dist_pred / dist_pred_sum
+            dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
+            dist_pred = dist_pred / dist_pred_sum
 
         intenstiy_pred = self.fc_intensity(out) # (16, 1)
 
