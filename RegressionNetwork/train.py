@@ -12,7 +12,6 @@ from PIL import Image
 import util
 import DenseNet
 from geomloss import SamplesLoss
-# from sliced_wasserstein import sliced_wasserstein_distance
 
 import imageio
 imageio.plugins.freeimage.download()

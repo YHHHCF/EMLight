@@ -131,6 +131,7 @@ class DenseNet(nn.Module):
         self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=1)
         self.relu = nn.ReLU()
+        self.leaky_relu = nn.LeakyReLU(0.01)
 
     # x, input of shape (N=16, 3, 192, 256)
     def forward(self, x):
@@ -140,7 +141,11 @@ class DenseNet(nn.Module):
         out = self.fc(out) # (16, 1024)
 
         dist_pred = self.fc_dist(out) # (16, 96)
-        # dist_pred = self.sigmoid(dist_pred)
+        dist_pred = self.leaky_relu(dist_pred)
+        dist_pred_min, _ = torch.min(dist_pred, dim=1, keepdim=True)
+        dist_pred = dist_pred - dist_pred_min
+        dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
+        dist_pred = dist_pred / dist_pred_sum
 
         intenstiy_pred = self.fc_intensity(out) # (16, 1)
         # intenstiy_pred = self.relu(intenstiy_pred)

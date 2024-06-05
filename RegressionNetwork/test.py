@@ -11,7 +11,7 @@ from util import PanoramaHandler, TonemapHDR, tonemapping
 from PIL import Image
 import util
 import DenseNet
-from gmloss import SamplesLoss
+from geomloss import SamplesLoss
 
 import imageio
 imageio.plugins.freeimage.download()
@@ -24,6 +24,9 @@ batch_size = 1
 
 hdr_train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", use_small=False, test=True)
 dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+
+l2 = nn.MSELoss().to(device)
+Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
 
 Model = DenseNet.DenseNet().to(device)
 load_weight = True
@@ -41,26 +44,17 @@ for i, para in enumerate(dataloader):
     pred = Model(input)
 
      # (1, ln=96)
-    distribution_pred = pred['distribution']
-    distribution_pred[distribution_pred < 0] = 0
-    distribution_gt = para['distribution'].to(device)
+    dist_pred = pred['distribution']
+    dist_gt = para['distribution'].to(device)
 
      # (1, 3)
     rgb_ratio_pred = pred['rgb_ratio']
-    rgb_ratio_pred[rgb_ratio_pred < 0] = 0
-    rgb_ratio_pred[rgb_ratio_pred > 1] = 1
     rgb_ratio_gt = para['rgb_ratio'].to(device)
-    print(rgb_ratio_pred)
-    print(rgb_ratio_gt)
+    print(rgb_ratio_pred, rgb_ratio_gt)
 
     # scalar
-    intensity_pred = pred['intensity'] * 500
     intensity_gt = para['intensity'].to(device) * 500
-
-    # print(torch.any(distribution_pred < 0), torch.any(rgb_ratio_pred < 0), intensity_pred < 0)
-    # print(torch.any(distribution_gt < 0), torch.any(rgb_ratio_gt < 0), intensity_gt < 0)
-
-    print (intensity_pred, intensity_gt)
+    intensity_pred = intensity_gt
 
     dirs = util.sphere_points(ln)
     dirs = torch.from_numpy(dirs).float()
@@ -69,8 +63,8 @@ for i, para in enumerate(dataloader):
     size = torch.ones((1, ln)).to(device) * 0.0025
     rgb_ratio_pred_repeat = rgb_ratio_pred[0].view(1, 1, 3).repeat(1, ln, 1) # (1, ln, 3)
     intensity_pred_repeat = intensity_pred[0].view(1, 1, 1).repeat(1, ln, 1) # (1, ln, 1)
-    distribution_pred = distribution_pred[0].view(1, ln, 1) # (1, ln, 1)
-    color_pred = rgb_ratio_pred_repeat * intensity_pred_repeat * distribution_pred # (1, ln, 3)
+    dist_pred = dist_pred[0].view(1, ln, 1) # (1, ln, 1)
+    color_pred = rgb_ratio_pred_repeat * intensity_pred_repeat * dist_pred # (1, ln, 3)
     color_pred = color_pred.view(1, ln*3) # (1, 3 * ln)
 
     hdr_pred = util.convert_to_panorama(dirs, size, color_pred)
@@ -87,7 +81,7 @@ for i, para in enumerate(dataloader):
 
     rgb_ratio = np.squeeze(rgb_ratio_pred[0].view(3).detach().cpu().numpy())
     intensity = np.squeeze(intensity_pred[0].detach().cpu().numpy())
-    distribution = np.squeeze(distribution_pred[0].view(ln).detach().cpu().numpy())
+    distribution = np.squeeze(dist_pred[0].view(ln).detach().cpu().numpy())
     parametric_lights = {"distribution": distribution, "rgb_ratio": rgb_ratio, 'intensity': intensity}
 
     with open('./results/' + nm + '.pickle', 'wb') as handle:
@@ -95,8 +89,8 @@ for i, para in enumerate(dataloader):
 
     rgb_ratio_gt_repeat = rgb_ratio_gt[0].view(1, 1, 3).repeat(1, ln, 1)
     intensity_gt_repeat = intensity_gt[0].view(1, 1, 1).repeat(1, ln, 1)
-    distribution_gt = distribution_gt[0].view(1, ln, 1)
-    color_gt = rgb_ratio_gt * intensity_gt * distribution_gt
+    dist_gt = dist_gt[0].view(1, ln, 1)
+    color_gt = rgb_ratio_gt * intensity_gt * dist_gt
     color_gt = color_gt.view(1, ln * 3)
 
     hdr_gt = util.convert_to_panorama(dirs, size, color_gt)
@@ -110,5 +104,11 @@ for i, para in enumerate(dataloader):
     hdr_gt = hdr_gt.astype('float32')
     hdr_gt_path = './results/{}_gt.exr'.format(nm)
     util.write_exr(hdr_gt_path, hdr_gt)
+
+    dist_emloss = Sam_Loss(dist_pred, dist_gt).sum() * 1000.0
+    intensity_loss = l2(intensity_pred, intensity_gt) * 0.1
+    rgb_loss = l2(rgb_ratio_pred, rgb_ratio_gt) * 100.0
+
+    print("dist_emloss:{}, rgb_loss:{}".format(dist_emloss.item(), rgb_loss.item()))
 
     print (i)
