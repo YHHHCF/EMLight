@@ -20,17 +20,17 @@ h = PanoramaHandler()
 batch_size = 8
 
 save_dir = "./checkpoints"
-train_dir = "../Dataset/LavalIndoor/"
-hdr_train_dataset = data.ParameterDataset(train_dir, use_small=False)
-dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", mode="train_small", small_num=128)
+# train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", mode="train")
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-Model = DenseNet.DenseNet().to(device)
+Model = DenseNet.OriginalDenseNet().to(device)
 
 torch.set_grad_enabled(True)
 Model.train()
 
-load_weight = True
+load_weight = False
 if load_weight:
     Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
     print('load trained model')
@@ -58,12 +58,12 @@ for epoch in range(0, 500):
 
     # lambda_G = lambda epoch: 0.5 ** (epoch // 30)
 
-    for i, para in enumerate(dataloader):
+    for i, para in enumerate(train_dataloader):
         input = para['crop'].to(device) # (N=16, 3, 192, 256)
         pred = Model(input)
 
         dist_pred, dist_gt = pred['distribution'], para['distribution'].to(device) # (16, ln=96)
-        intensity_pred, intensity_gt = pred['intensity'], para['intensity'].to(device).view(-1, 1) # (16, 1)
+        _, intensity_gt = pred['intensity'], para['intensity'].to(device).view(-1, 1) # (16, 1)
         rgb_ratio_pred, rgb_ratio_gt = pred['rgb_ratio'], para['rgb_ratio'].to(device) # (16, 3)
         ambient_pred, ambient_gt = pred['ambient'], para['ambient'].to(device) # (16, 3)
 
@@ -71,19 +71,18 @@ for epoch in range(0, 500):
         dist_gt = dist_gt.view(-1, ln, 1) # (N=16, 96, 1)
         dist_emloss = Sam_Loss(dist_pred, dist_gt).sum() * 1000.0
         dist_l2loss = l2(dist_pred, dist_gt) * 1000.0
-        intensity_loss = l2(intensity_pred, intensity_gt) * 0.1
         rgb_loss = l2(rgb_ratio_pred, rgb_ratio_gt) * 100.0
         ambient_loss = l2(ambient_pred, ambient_gt) * 1.0
 
-        loss = dist_emloss + dist_l2loss + intensity_loss + rgb_loss + ambient_loss
+        loss = dist_emloss + dist_l2loss + rgb_loss + ambient_loss
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         if i % 10 == 0:
-            print("epoch {:0>3d} batch {:0>3d}, dist_emloss:{}, dist_l2loss:{}, intensity_loss:{}, rgb_loss:{}, ambient_loss:{}"
-                  .format(epoch, i, dist_emloss.item(), dist_l2loss.item(), intensity_loss.item(), rgb_loss.item(), ambient_loss.item()))
+            print("epoch {:0>3d} batch {:0>3d}, dist_emloss:{}, dist_l2loss:{}, rgb_loss:{}, ambient_loss:{}"
+                  .format(epoch, i, dist_emloss.item(), dist_l2loss.item(), rgb_loss.item(), ambient_loss.item()))
 
         if i % 100 == 0:
             dirs = util.sphere_points(ln)
@@ -92,16 +91,15 @@ for epoch in range(0, 500):
 
             size = torch.ones((1, ln)).to(device).float() * 0.0025
 
-            intensity_pred = intensity_pred[0].view(1, 1, 1).repeat(1, ln, 3) * 500
+            intensity_gt = intensity_gt[0].view(1, 1, 1).repeat(1, ln, 3) * 500
             dist_pred = dist_pred[0].view(1, ln, 1).repeat(1, 1, 3)
             rgb_ratio_pred = rgb_ratio_pred[0].view(1, 1, 3).repeat(1, ln, 1)
 
-            light_pred = (dist_pred * intensity_pred * rgb_ratio_pred).view(1, ln * 3)
+            light_pred = (dist_pred * intensity_gt * rgb_ratio_pred).view(1, ln * 3)
             env_pred = util.convert_to_panorama(dirs, size, light_pred)
             env_pred = np.squeeze(env_pred[0].detach().cpu().numpy())
             env_pred = tone(env_pred)[0].transpose((1, 2, 0)).astype('float32') * 255.0
 
-            intensity_gt = intensity_gt[0].view(1, 1, 1).repeat(1, ln, 3) * 500
             dist_gt = dist_gt[0].view(1, ln, 1).repeat(1, 1, 3)
             rgb_ratio_gt = rgb_ratio_gt[0].view(1, 1, 3).repeat(1, ln, 1)
 

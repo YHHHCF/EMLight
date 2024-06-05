@@ -15,20 +15,22 @@ import shutil
 
 
 class ParameterDataset(Dataset):
-    def __init__(self, dir, use_small=False, test=False):
+    def __init__(self, dir, mode="train", small_num=128):
         assert os.path.exists(dir)
 
         self.pairs = []
 
         gt_dir = dir + 'pkl/'
 
-        if use_small:
-            crop_dir = dir + 'input_small/' # try to overfit a small dataset
-        else:
+        if mode == "train":
             crop_dir = dir + 'input_train/'
-
-        if test:
+        elif mode == "val":
+            crop_dir = dir + 'input_val/'
+        elif mode == "test":
             crop_dir = dir + 'input_test/'
+        elif mode == "train_small":
+            # try to overfit a small dataset
+            crop_dir = dir + 'input_small/' + str(small_num) + '/' # try to overfit a small dataset
 
         gt_nms = os.listdir(gt_dir)
         for nm in gt_nms:

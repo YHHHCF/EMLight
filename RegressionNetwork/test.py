@@ -22,13 +22,13 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 h = PanoramaHandler()
 batch_size = 1
 
-hdr_train_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", use_small=False, test=True)
-dataloader = DataLoader(hdr_train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+test_dataset = data.ParameterDataset("../Dataset/LavalIndoor/", mode="test")
+dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 l2 = nn.MSELoss().to(device)
 Sam_Loss = SamplesLoss("sinkhorn", p=2, blur=.025, batchsize=batch_size)
 
-Model = DenseNet.DenseNet().to(device)
+Model = DenseNet.OriginalDenseNet().to(device)
 load_weight = True
 if load_weight:
     Model.load_state_dict(torch.load("./checkpoints/latest_net.pth"))

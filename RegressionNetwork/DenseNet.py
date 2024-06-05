@@ -177,10 +177,9 @@ class OriginalDenseNet(nn.Module):
         self.fc_intensity = nn.Linear(H, 1)
         self.fc_rgb_ratio = nn.Linear(H, 3)
         self.fc_ambient = nn.Linear(H, 3)
-        self.sigmoid = nn.Sigmoid()
-        self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=1)
         self.relu = nn.ReLU()
+        self.use_leaky_relu = False
 
     # x, input of shape (N=16, 3, 192, 256)
     def forward(self, x):
@@ -189,16 +188,18 @@ class OriginalDenseNet(nn.Module):
         out = self.fc(out) # (16, 1024)
 
         dist_pred = self.fc_dist(out) # (16, 96)
-        # dist_pred = self.sigmoid(dist_pred)
+        if self.use_leaky_relu:
+            dist_pred = self.leaky_relu(dist_pred)
+            dist_pred_min, _ = torch.min(dist_pred, dim=1, keepdim=True)
+            dist_pred = dist_pred - dist_pred_min
+            dist_pred_sum = torch.sum(dist_pred, axis=1).view(-1, 1)
+            dist_pred = dist_pred / dist_pred_sum
 
         intenstiy_pred = self.fc_intensity(out) # (16, 1)
-        # intenstiy_pred = self.relu(intenstiy_pred)
 
         rgb_ratio_pred = self.fc_rgb_ratio(out) # (16, 3)
-        # rgb_ratio_pred = self.sigmoid(rgb_ratio_pred)
 
         ambient_pred = self.fc_ambient(out) # (16, 3)
-        # ambient_pred = self.relu(ambient_pred)
 
         return {'distribution': dist_pred,
                 'intensity': intenstiy_pred,
