@@ -17,7 +17,7 @@ import imageio
 imageio.plugins.freeimage.download()
 
 h = PanoramaHandler()
-batch_size = 16
+batch_size = 8
 
 save_dir = "./checkpoints"
 data_dir = "../Dataset/LavalIndoor/"
@@ -38,7 +38,7 @@ Model.train()
 
 load_weight = True
 if load_weight:
-    Model.load_state_dict(torch.load("./checkpoints/latest_net.pth", map_location=device))
+    Model.load_state_dict(torch.load("./checkpoints/paper/latest_net.pth", map_location=device))
     print('load trained model')
 util.print_model_parm_nums(Model)
 

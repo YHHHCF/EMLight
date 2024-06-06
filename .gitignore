@@ -9,6 +9,7 @@ Dataset/LavalIndoor/input_test/*
 Dataset/LavalIndoor/input_small/*
 Dataset/LavalIndoor/semantics/*
 Dataset/LavalIndoor/pkl*
+Dataset/LavalIndoor/semantics.zip
 Dataset/LavalIndoor/semantics_1ch.zip
 Dataset/LavalIndoor/dataset_ICCV_stage1.tar.gz
 Dataset/LavalIndoor/dataset_ICCV_stage2.tar.gz
