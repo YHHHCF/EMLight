@@ -38,7 +38,7 @@ def render(exr_path, output_image_path, mode):
     if not bpy.data.cameras:
         bpy.ops.object.camera_add(location=(0, -8, 0))
     camera = bpy.context.scene.camera or bpy.data.objects['Camera']
-    camera.location = (0, -8, 0)
+    camera.location = (0, -12, 0)
     camera.rotation_euler = (1.5708, 0, 0)
 
     # Set the rendering settings
@@ -48,7 +48,7 @@ def render(exr_path, output_image_path, mode):
 
     # Set lower resolution for rendering
     bpy.context.scene.render.resolution_x = 256  # Set width of the output image
-    bpy.context.scene.render.resolution_y = 256  # Set height of the output image
+    bpy.context.scene.render.resolution_y = 192  # Set height of the output image
     bpy.context.scene.render.resolution_percentage = 100  # Percentage of the resolution
 
     # Disable all lights in the scene
@@ -125,7 +125,8 @@ def render(exr_path, output_image_path, mode):
     bpy.ops.render.render(write_still=True)
 
 if __name__=="__main__":
-    base_dir = "./results/semantic_model/results/"
+    # base_dir = "./results/semantic_model/results/"
+    base_dir = "./qualitative_eval/"
     save_dir = base_dir + "rendered/"
     nms = os.listdir(base_dir)
 
